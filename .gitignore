@@ -28,3 +28,9 @@ htmlcov/
 .tox/
 .mypy_cache/
 .ruff_cache/
+
+# Local planning / AI context — never committed, never pushed
+PLAN-*.md
+PLANstage1portfolio.md
+CLAUDE.md
+.claude/
