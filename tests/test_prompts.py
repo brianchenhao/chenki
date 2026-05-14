@@ -147,3 +147,41 @@ def test_order_parse_wraps_order_text():
 def test_order_parse_system_ends_with_defense_clause():
     messages = RestaurantPrompts.order_parse(text="?", menu=[])
     assert messages[0].content.endswith(DEFENSE_CLAUSE)
+
+
+_SAMPLE_MENU = [
+    {"name": "Pad Thai", "description": "Stir-fried rice noodles with shrimp"},
+    {"name": "Green Curry", "description": "Coconut curry with chicken and basil"},
+    {"name": "Tom Yum", "description": "Hot and sour shrimp soup"},
+    {"name": "Mango Sticky Rice", "description": "Sweet sticky rice with mango"},
+    {"name": "Spring Rolls", "description": "Crispy vegetable rolls"},
+]
+
+
+def _approx_tokens(messages: list[Message]) -> int:
+    return sum(len(m.content) for m in messages) // 4
+
+
+def test_menu_qa_under_800_tokens():
+    messages = RestaurantPrompts.menu_qa(
+        question="Anything spicy and vegetarian?", menu=_SAMPLE_MENU
+    )
+    assert _approx_tokens(messages) < 800
+
+
+def test_classify_under_1000_tokens():
+    messages = RestaurantPrompts.classify(
+        name="Nasi Lemak",
+        description=(
+            "Coconut rice served with sambal, anchovies, peanuts, and egg."
+        ),
+    )
+    assert _approx_tokens(messages) < 1000
+
+
+def test_order_parse_under_1000_tokens():
+    messages = RestaurantPrompts.order_parse(
+        text="I'd like two pad thai and one green curry, hold the basil.",
+        menu=_SAMPLE_MENU,
+    )
+    assert _approx_tokens(messages) < 1000
