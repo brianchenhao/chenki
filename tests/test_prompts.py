@@ -1,4 +1,4 @@
-from chenki import Message, PromptTemplate
+from chenki import Message, PromptTemplate, RestaurantPrompts
 from chenki.prompts.base import DEFENSE_CLAUSE
 
 
@@ -58,3 +58,28 @@ def test_render_does_not_touch_user_messages():
     assert rendered[1].role == "user"
     assert rendered[1].content == "<user_content>hi</user_content>"
     assert DEFENSE_CLAUSE not in rendered[1].content
+
+
+def test_menu_qa_returns_system_then_user():
+    messages = RestaurantPrompts.menu_qa(question="anything spicy?", menu=[])
+    assert len(messages) == 2
+    assert messages[0].role == "system"
+    assert messages[1].role == "user"
+
+
+def test_menu_qa_wraps_question_in_user_content():
+    messages = RestaurantPrompts.menu_qa(question="anything spicy?", menu=[])
+    assert messages[1].content == "<user_content>anything spicy?</user_content>"
+
+
+def test_menu_qa_embeds_wrapped_menu_json():
+    menu = [{"name": "Pad Thai", "description": "stir-fried noodles"}]
+    messages = RestaurantPrompts.menu_qa(question="?", menu=menu)
+    system = messages[0].content
+    assert "<user_content>Pad Thai</user_content>" in system
+    assert "<user_content>stir-fried noodles</user_content>" in system
+
+
+def test_menu_qa_system_ends_with_defense_clause():
+    messages = RestaurantPrompts.menu_qa(question="?", menu=[])
+    assert messages[0].content.endswith(DEFENSE_CLAUSE)
