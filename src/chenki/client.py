@@ -9,7 +9,7 @@ from chenki.messages import ChatCompletion, Message
 
 
 class ChenkiClient:
-    """Synchronous client for an OpenAI-compatible chat completions endpoint."""
+    """Client for an OpenAI-compatible chat completions endpoint."""
 
     def __init__(
         self,
@@ -28,18 +28,48 @@ class ChenkiClient:
         model: str | None = None,
         temperature: float | None = None,
     ) -> ChatCompletion:
-        url = f"{self.config.endpoint.rstrip('/')}/chat/completions"
-        payload: dict[str, Any] = {
+        response = httpx.post(
+            self._completions_url(),
+            json=self._build_payload(messages, model, temperature),
+            timeout=self.config.timeout,
+        )
+        response.raise_for_status()
+        return _parse_chat_completion(response.json())
+
+    async def achat(
+        self,
+        messages: Iterable[Message],
+        *,
+        model: str | None = None,
+        temperature: float | None = None,
+    ) -> ChatCompletion:
+        async with httpx.AsyncClient(timeout=self.config.timeout) as client:
+            response = await client.post(
+                self._completions_url(),
+                json=self._build_payload(messages, model, temperature),
+            )
+            response.raise_for_status()
+            return _parse_chat_completion(response.json())
+
+    def _completions_url(self) -> str:
+        return f"{self.config.endpoint.rstrip('/')}/chat/completions"
+
+    def _build_payload(
+        self,
+        messages: Iterable[Message],
+        model: str | None,
+        temperature: float | None,
+        *,
+        stream: bool = False,
+    ) -> dict[str, Any]:
+        return {
             "model": model or self.config.model,
             "messages": [m.to_dict() for m in messages],
             "temperature": (
                 temperature if temperature is not None else self.config.temperature
             ),
-            "stream": False,
+            "stream": stream,
         }
-        response = httpx.post(url, json=payload, timeout=self.config.timeout)
-        response.raise_for_status()
-        return _parse_chat_completion(response.json())
 
 
 def _parse_chat_completion(body: dict[str, Any]) -> ChatCompletion:
