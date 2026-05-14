@@ -2,7 +2,13 @@ import httpx
 import pytest
 import respx
 
-from chenki import ChenkiClient, Message
+from chenki import (
+    ChenkiClient,
+    ChenkiRateLimited,
+    ChenkiServerError,
+    ChenkiTimeout,
+    Message,
+)
 
 ENDPOINT = "https://chenki-llm.hf.space/v1"
 
@@ -49,3 +55,44 @@ async def test_achat_returns_assistant_text():
     assert reply.text == "Hi from async!"
     assert reply.finish_reason == "stop"
     assert reply.tokens_used == 7
+
+
+@respx.mock
+def test_chat_raises_timeout_on_httpx_timeout():
+    respx.post(f"{ENDPOINT}/chat/completions").mock(
+        side_effect=httpx.ConnectTimeout("connect timeout")
+    )
+    client = ChenkiClient(endpoint=ENDPOINT)
+    with pytest.raises(ChenkiTimeout):
+        client.chat([Message(role="user", content="Hi")])
+
+
+@respx.mock
+def test_chat_raises_server_error_on_500():
+    respx.post(f"{ENDPOINT}/chat/completions").mock(
+        return_value=httpx.Response(500, json={"error": "boom"})
+    )
+    client = ChenkiClient(endpoint=ENDPOINT)
+    with pytest.raises(ChenkiServerError):
+        client.chat([Message(role="user", content="Hi")])
+
+
+@respx.mock
+def test_chat_raises_rate_limited_on_429():
+    respx.post(f"{ENDPOINT}/chat/completions").mock(
+        return_value=httpx.Response(429, json={"error": "slow down"})
+    )
+    client = ChenkiClient(endpoint=ENDPOINT)
+    with pytest.raises(ChenkiRateLimited):
+        client.chat([Message(role="user", content="Hi")])
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_achat_raises_timeout_on_httpx_timeout():
+    respx.post(f"{ENDPOINT}/chat/completions").mock(
+        side_effect=httpx.ReadTimeout("read timeout")
+    )
+    client = ChenkiClient(endpoint=ENDPOINT)
+    with pytest.raises(ChenkiTimeout):
+        await client.achat([Message(role="user", content="Hi")])
