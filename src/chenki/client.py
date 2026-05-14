@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import time
 from typing import Any, Iterable
 
 import httpx
@@ -29,16 +31,16 @@ class ChenkiClient:
         model: str | None = None,
         temperature: float | None = None,
     ) -> ChatCompletion:
-        try:
-            response = httpx.post(
-                self._completions_url(),
-                json=self._build_payload(messages, model, temperature),
-                timeout=self.config.timeout,
-            )
-        except httpx.TimeoutException as exc:
-            raise ChenkiTimeout(str(exc)) from exc
-        _raise_for_status(response)
-        return _parse_chat_completion(response.json())
+        payload = self._build_payload(messages, model, temperature)
+        url = self._completions_url()
+        for attempt in range(self.config.max_retries + 1):
+            try:
+                return _sync_request(url, payload, self.config.timeout)
+            except ChenkiServerError:
+                if attempt >= self.config.max_retries:
+                    raise
+                time.sleep(_retry_delay(attempt, self.config.retry_backoff_base))
+        raise RuntimeError("retry loop exited without return")
 
     async def achat(
         self,
@@ -47,16 +49,18 @@ class ChenkiClient:
         model: str | None = None,
         temperature: float | None = None,
     ) -> ChatCompletion:
-        try:
-            async with httpx.AsyncClient(timeout=self.config.timeout) as client:
-                response = await client.post(
-                    self._completions_url(),
-                    json=self._build_payload(messages, model, temperature),
+        payload = self._build_payload(messages, model, temperature)
+        url = self._completions_url()
+        for attempt in range(self.config.max_retries + 1):
+            try:
+                return await _async_request(url, payload, self.config.timeout)
+            except ChenkiServerError:
+                if attempt >= self.config.max_retries:
+                    raise
+                await asyncio.sleep(
+                    _retry_delay(attempt, self.config.retry_backoff_base)
                 )
-        except httpx.TimeoutException as exc:
-            raise ChenkiTimeout(str(exc)) from exc
-        _raise_for_status(response)
-        return _parse_chat_completion(response.json())
+        raise RuntimeError("retry loop exited without return")
 
     def _completions_url(self) -> str:
         return f"{self.config.endpoint.rstrip('/')}/chat/completions"
@@ -79,6 +83,27 @@ class ChenkiClient:
         }
 
 
+def _sync_request(url: str, payload: dict[str, Any], timeout: float) -> ChatCompletion:
+    try:
+        response = httpx.post(url, json=payload, timeout=timeout)
+    except httpx.TimeoutException as exc:
+        raise ChenkiTimeout(str(exc)) from exc
+    _raise_for_status(response)
+    return _parse_chat_completion(response.json())
+
+
+async def _async_request(
+    url: str, payload: dict[str, Any], timeout: float
+) -> ChatCompletion:
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(url, json=payload)
+    except httpx.TimeoutException as exc:
+        raise ChenkiTimeout(str(exc)) from exc
+    _raise_for_status(response)
+    return _parse_chat_completion(response.json())
+
+
 def _raise_for_status(response: httpx.Response) -> None:
     status = response.status_code
     if 200 <= status < 300:
@@ -90,6 +115,10 @@ def _raise_for_status(response: httpx.Response) -> None:
             f"chenki-llm returned {status}: {response.text[:200]}"
         )
     response.raise_for_status()
+
+
+def _retry_delay(attempt: int, base: float) -> float:
+    return base * (2 ** attempt)
 
 
 def _parse_chat_completion(body: dict[str, Any]) -> ChatCompletion:

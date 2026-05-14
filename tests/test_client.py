@@ -4,6 +4,7 @@ import respx
 
 from chenki import (
     ChenkiClient,
+    ChenkiConfig,
     ChenkiRateLimited,
     ChenkiServerError,
     ChenkiTimeout,
@@ -26,6 +27,10 @@ def _completion_response(content: str = "Hello world!", *, total_tokens: int = 4
             "usage": {"total_tokens": total_tokens},
         },
     )
+
+
+def _fast_config() -> ChenkiConfig:
+    return ChenkiConfig(endpoint=ENDPOINT, retry_backoff_base=0.0)
 
 
 @respx.mock
@@ -62,7 +67,7 @@ def test_chat_raises_timeout_on_httpx_timeout():
     respx.post(f"{ENDPOINT}/chat/completions").mock(
         side_effect=httpx.ConnectTimeout("connect timeout")
     )
-    client = ChenkiClient(endpoint=ENDPOINT)
+    client = ChenkiClient(config=_fast_config())
     with pytest.raises(ChenkiTimeout):
         client.chat([Message(role="user", content="Hi")])
 
@@ -72,7 +77,7 @@ def test_chat_raises_server_error_on_500():
     respx.post(f"{ENDPOINT}/chat/completions").mock(
         return_value=httpx.Response(500, json={"error": "boom"})
     )
-    client = ChenkiClient(endpoint=ENDPOINT)
+    client = ChenkiClient(config=_fast_config())
     with pytest.raises(ChenkiServerError):
         client.chat([Message(role="user", content="Hi")])
 
@@ -82,7 +87,7 @@ def test_chat_raises_rate_limited_on_429():
     respx.post(f"{ENDPOINT}/chat/completions").mock(
         return_value=httpx.Response(429, json={"error": "slow down"})
     )
-    client = ChenkiClient(endpoint=ENDPOINT)
+    client = ChenkiClient(config=_fast_config())
     with pytest.raises(ChenkiRateLimited):
         client.chat([Message(role="user", content="Hi")])
 
@@ -93,6 +98,52 @@ async def test_achat_raises_timeout_on_httpx_timeout():
     respx.post(f"{ENDPOINT}/chat/completions").mock(
         side_effect=httpx.ReadTimeout("read timeout")
     )
-    client = ChenkiClient(endpoint=ENDPOINT)
+    client = ChenkiClient(config=_fast_config())
     with pytest.raises(ChenkiTimeout):
         await client.achat([Message(role="user", content="Hi")])
+
+
+@respx.mock
+def test_chat_retries_once_on_500_then_succeeds():
+    route = respx.post(f"{ENDPOINT}/chat/completions").mock(
+        side_effect=[
+            httpx.Response(500, json={"error": "boom"}),
+            _completion_response("recovered", total_tokens=3),
+        ]
+    )
+
+    client = ChenkiClient(config=_fast_config())
+    reply = client.chat([Message(role="user", content="Hi")])
+
+    assert reply.text == "recovered"
+    assert route.call_count == 2
+
+
+@respx.mock
+def test_chat_gives_up_after_max_retries():
+    route = respx.post(f"{ENDPOINT}/chat/completions").mock(
+        return_value=httpx.Response(500, json={"error": "boom"})
+    )
+
+    client = ChenkiClient(config=_fast_config())
+    with pytest.raises(ChenkiServerError):
+        client.chat([Message(role="user", content="Hi")])
+
+    assert route.call_count == 2  # initial attempt + 1 retry
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_achat_retries_once_on_500_then_succeeds():
+    route = respx.post(f"{ENDPOINT}/chat/completions").mock(
+        side_effect=[
+            httpx.Response(500, json={"error": "boom"}),
+            _completion_response("recovered-async", total_tokens=4),
+        ]
+    )
+
+    client = ChenkiClient(config=_fast_config())
+    reply = await client.achat([Message(role="user", content="Hi")])
+
+    assert reply.text == "recovered-async"
+    assert route.call_count == 2
