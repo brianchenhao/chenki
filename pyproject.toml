@@ -5,28 +5,39 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "chenki"
 version = "0.0.1"
-description = "A fast, lightweight PDF toolkit for Python. Coming soon."
+description = "Self-hostable LLM client for restaurant tech."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
-    { name = "brianchenhao", email = "brianchenjunhao@gmail.com" }
+    { name = "Brian Chen", email = "brianchen.crisp@gmail.com" }
 ]
-keywords = ["pdf", "tools", "processing", "document", "utilities"]
+keywords = ["llm", "openai", "chat", "restaurant", "self-hosted", "huggingface"]
 classifiers = [
-    "Development Status :: 1 - Planning",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Software Development :: Libraries :: Python Modules",
-    "Topic :: Utilities",
 ]
+dependencies = [
+    "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+cache = []
+test = ["pytest>=8.0", "pytest-asyncio>=0.23", "respx>=0.20"]
+docs = ["mkdocs>=1.6", "mkdocs-material>=9.5"]
+
+[project.urls]
+Homepage = "https://chenki.com"
+Repository = "https://github.com/brianchenhao/chenki"
 
 [tool.setuptools.packages.find]
 where = ["src"]
