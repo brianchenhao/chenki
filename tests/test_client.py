@@ -147,3 +147,35 @@ async def test_achat_retries_once_on_500_then_succeeds():
 
     assert reply.text == "recovered-async"
     assert route.call_count == 2
+
+
+@respx.mock
+def test_chat_stream_yields_content_deltas():
+    sse_body = (
+        'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n'
+        'data: {"choices":[{"delta":{"content":" world"}}]}\n\n'
+        "data: [DONE]\n\n"
+    )
+    respx.post(f"{ENDPOINT}/chat/completions").mock(
+        return_value=httpx.Response(
+            200,
+            content=sse_body.encode("utf-8"),
+            headers={"content-type": "text/event-stream"},
+        )
+    )
+
+    client = ChenkiClient(endpoint=ENDPOINT)
+    chunks = list(client.chat_stream([Message(role="user", content="Hi")]))
+
+    assert chunks == ["Hello", " world"]
+
+
+@respx.mock
+def test_chat_stream_raises_server_error_on_500():
+    respx.post(f"{ENDPOINT}/chat/completions").mock(
+        return_value=httpx.Response(500, json={"error": "boom"})
+    )
+
+    client = ChenkiClient(endpoint=ENDPOINT)
+    with pytest.raises(ChenkiServerError):
+        list(client.chat_stream([Message(role="user", content="Hi")]))

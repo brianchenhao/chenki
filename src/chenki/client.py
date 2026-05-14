@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import time
-from typing import Any, Iterable
+from typing import Any, Iterable, Iterator
 
 import httpx
 
@@ -62,6 +63,16 @@ class ChenkiClient:
                 )
         raise RuntimeError("retry loop exited without return")
 
+    def chat_stream(
+        self,
+        messages: Iterable[Message],
+        *,
+        model: str | None = None,
+        temperature: float | None = None,
+    ) -> Iterator[str]:
+        payload = self._build_payload(messages, model, temperature, stream=True)
+        return _sync_stream(self._completions_url(), payload, self.config.timeout)
+
     def _completions_url(self) -> str:
         return f"{self.config.endpoint.rstrip('/')}/chat/completions"
 
@@ -102,6 +113,41 @@ async def _async_request(
         raise ChenkiTimeout(str(exc)) from exc
     _raise_for_status(response)
     return _parse_chat_completion(response.json())
+
+
+def _sync_stream(
+    url: str, payload: dict[str, Any], timeout: float
+) -> Iterator[str]:
+    try:
+        with httpx.stream("POST", url, json=payload, timeout=timeout) as response:
+            if response.status_code >= 400:
+                response.read()
+                _raise_for_status(response)
+            for line in response.iter_lines():
+                delta = _parse_sse_content(line)
+                if delta is _SSE_DONE:
+                    return
+                if delta:
+                    yield delta
+    except httpx.TimeoutException as exc:
+        raise ChenkiTimeout(str(exc)) from exc
+
+
+_SSE_DONE = object()
+
+
+def _parse_sse_content(line: str) -> Any:
+    if not line or not line.startswith("data: "):
+        return None
+    data = line[6:].strip()
+    if data == "[DONE]":
+        return _SSE_DONE
+    try:
+        chunk = json.loads(data)
+    except json.JSONDecodeError:
+        return None
+    choices = chunk.get("choices") or [{}]
+    return choices[0].get("delta", {}).get("content")
 
 
 def _raise_for_status(response: httpx.Response) -> None:
