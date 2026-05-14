@@ -83,3 +83,34 @@ def test_menu_qa_embeds_wrapped_menu_json():
 def test_menu_qa_system_ends_with_defense_clause():
     messages = RestaurantPrompts.menu_qa(question="?", menu=[])
     assert messages[0].content.endswith(DEFENSE_CLAUSE)
+
+
+def test_classify_returns_system_then_user():
+    messages = RestaurantPrompts.classify(name="Pad Thai", description="noodles")
+    assert len(messages) == 2
+    assert messages[0].role == "system"
+    assert messages[1].role == "user"
+
+
+def test_classify_system_demands_strict_json():
+    messages = RestaurantPrompts.classify(name="x", description="y")
+    system = messages[0].content
+    assert "JSON only" in system
+    assert "cuisine" in system
+    assert "spice_level" in system
+    assert "dietary_tags" in system
+    assert "No prose" in system
+
+
+def test_classify_wraps_name_and_description():
+    messages = RestaurantPrompts.classify(
+        name="Nasi Lemak", description="rice with sambal"
+    )
+    user = messages[1].content
+    assert "<user_content>Nasi Lemak</user_content>" in user
+    assert "<user_content>rice with sambal</user_content>" in user
+
+
+def test_classify_system_ends_with_defense_clause():
+    messages = RestaurantPrompts.classify(name="x", description="y")
+    assert messages[0].content.endswith(DEFENSE_CLAUSE)

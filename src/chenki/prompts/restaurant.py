@@ -26,9 +26,40 @@ class MenuQAPrompt(PromptTemplate):
         ]
 
 
+class ClassifyDishPrompt(PromptTemplate):
+    """Classify a dish into cuisine/spice/dietary tags as strict JSON."""
+
+    def build_messages(self, *, name: str, description: str) -> list[Message]:
+        return [
+            Message(
+                role="system",
+                content=(
+                    "Classify the dish. Respond with JSON only matching:\n"
+                    '{"cuisine":"<string>",'
+                    '"spice_level":"none|mild|medium|hot",'
+                    '"dietary_tags":["<string>",...]}\n'
+                    'Example: {"cuisine":"Italian","spice_level":"none",'
+                    '"dietary_tags":["vegetarian"]}\n'
+                    "No prose, no markdown fences."
+                ),
+            ),
+            Message(
+                role="user",
+                content=(
+                    f"Name: {self._wrap(name)}\n"
+                    f"Description: {self._wrap(description)}"
+                ),
+            ),
+        ]
+
+
 class RestaurantPrompts:
     """Pre-built restaurant prompts."""
 
     @staticmethod
     def menu_qa(question: str, menu: list[dict[str, Any]]) -> list[Message]:
         return MenuQAPrompt().render(question=question, menu=menu)
+
+    @staticmethod
+    def classify(name: str, description: str) -> list[Message]:
+        return ClassifyDishPrompt().render(name=name, description=description)
