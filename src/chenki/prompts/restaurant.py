@@ -53,6 +53,29 @@ class ClassifyDishPrompt(PromptTemplate):
         ]
 
 
+class OrderParsePrompt(PromptTemplate):
+    """Extract an order from free-form text against a known menu."""
+
+    def build_messages(
+        self, *, text: str, menu: list[dict[str, Any]]
+    ) -> list[Message]:
+        return [
+            Message(
+                role="system",
+                content=(
+                    "Extract the order from the customer's text. Use only "
+                    "names that appear in the menu (JSON below).\n"
+                    f"Menu: {self._wrap_json(menu)}\n\n"
+                    "Respond with JSON only matching:\n"
+                    '{"items":[{"name":"<menu name>","quantity":<int>,'
+                    '"notes":"<string>"}],"notes":"<string>"}\n'
+                    "No prose, no markdown fences."
+                ),
+            ),
+            Message(role="user", content=self._wrap(text)),
+        ]
+
+
 class RestaurantPrompts:
     """Pre-built restaurant prompts."""
 
@@ -63,3 +86,7 @@ class RestaurantPrompts:
     @staticmethod
     def classify(name: str, description: str) -> list[Message]:
         return ClassifyDishPrompt().render(name=name, description=description)
+
+    @staticmethod
+    def order_parse(text: str, menu: list[dict[str, Any]]) -> list[Message]:
+        return OrderParsePrompt().render(text=text, menu=menu)

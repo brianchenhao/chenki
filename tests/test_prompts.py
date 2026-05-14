@@ -114,3 +114,36 @@ def test_classify_wraps_name_and_description():
 def test_classify_system_ends_with_defense_clause():
     messages = RestaurantPrompts.classify(name="x", description="y")
     assert messages[0].content.endswith(DEFENSE_CLAUSE)
+
+
+def test_order_parse_returns_system_then_user():
+    messages = RestaurantPrompts.order_parse(text="2 pad thai", menu=[])
+    assert len(messages) == 2
+    assert messages[0].role == "system"
+    assert messages[1].role == "user"
+
+
+def test_order_parse_system_demands_strict_json():
+    messages = RestaurantPrompts.order_parse(text="x", menu=[])
+    system = messages[0].content
+    assert "JSON only" in system
+    assert "items" in system
+    assert "quantity" in system
+    assert "notes" in system
+    assert "No prose" in system
+
+
+def test_order_parse_embeds_wrapped_menu_json():
+    menu = [{"name": "Pad Thai"}]
+    messages = RestaurantPrompts.order_parse(text="?", menu=menu)
+    assert "<user_content>Pad Thai</user_content>" in messages[0].content
+
+
+def test_order_parse_wraps_order_text():
+    messages = RestaurantPrompts.order_parse(text="2x pad thai please", menu=[])
+    assert messages[1].content == "<user_content>2x pad thai please</user_content>"
+
+
+def test_order_parse_system_ends_with_defense_clause():
+    messages = RestaurantPrompts.order_parse(text="?", menu=[])
+    assert messages[0].content.endswith(DEFENSE_CLAUSE)
