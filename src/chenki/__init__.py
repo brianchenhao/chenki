@@ -9,6 +9,7 @@ from chenki.exceptions import (
     ChenkiTimeout,
 )
 from chenki.messages import ChatCompletion, Message
+from chenki.prompts import PromptTemplate
 
 __all__ = [
     "__version__",
@@ -21,4 +22,5 @@ __all__ = [
     "ChenkiServerError",
     "ChenkiTimeout",
     "Message",
+    "PromptTemplate",
 ]
