@@ -1,7 +1,7 @@
 import httpx
 import respx
 
-from chenki import ChenkiClient, DishClassification
+from chenki import ChenkiClient, DishClassification, OrderItem, ParsedOrder
 
 ENDPOINT = "https://chenki-llm.hf.space/v1"
 
@@ -48,4 +48,22 @@ def test_classify_dish_returns_dataclass():
         cuisine="Malay",
         spice_level="medium",
         dietary_tags=["contains_egg"],
+    )
+
+
+@respx.mock
+def test_parse_order_text_returns_dataclass():
+    respx.post(f"{ENDPOINT}/chat/completions").mock(
+        return_value=_completion_response(
+            '{"items":[{"name":"Pad Thai","quantity":2,"notes":"no peanuts"}],'
+            '"notes":"dine-in"}'
+        )
+    )
+    client = ChenkiClient(endpoint=ENDPOINT)
+    order = client.parse_order_text(
+        "Two pad thai, no peanuts. Dine-in.", menu=[]
+    )
+    assert order == ParsedOrder(
+        items=[OrderItem(name="Pad Thai", quantity=2, notes="no peanuts")],
+        notes="dine-in",
     )

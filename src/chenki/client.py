@@ -89,6 +89,11 @@ class ChenkiClient:
 
         return classify_dish(self, name, description)
 
+    def parse_order_text(self, text: str, menu: list[dict[str, Any]]):
+        from chenki.helpers.order_parse import parse_order_text
+
+        return parse_order_text(self, text, menu)
+
     def _chat_for_json(
         self,
         messages: list[Message],
