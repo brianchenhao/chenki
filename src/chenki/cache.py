@@ -41,7 +41,18 @@ class PromptCache:
                 "SELECT response FROM prompt_cache WHERE prompt_hash = ?",
                 (key,),
             ).fetchone()
-            return row[0] if row is not None else None
+            if row is None:
+                return None
+            conn.execute(
+                """
+                UPDATE prompt_cache
+                SET hit_count = hit_count + 1,
+                    last_hit_at = ?
+                WHERE prompt_hash = ?
+                """,
+                (_utcnow_iso(), key),
+            )
+            return row[0]
 
     def set(self, key: str, response: str) -> None:
         now = _utcnow_iso()

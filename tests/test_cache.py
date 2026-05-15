@@ -147,3 +147,59 @@ async def test_achat_hits_cache_on_second_call(tmp_path):
     assert first.text == "async cached"
     assert second.text == "async cached"
     assert route.call_count == 1
+
+
+def _read_hit_count(path, key: str) -> int:
+    conn = sqlite3.connect(path)
+    try:
+        row = conn.execute(
+            "SELECT hit_count FROM prompt_cache WHERE prompt_hash = ?",
+            (key,),
+        ).fetchone()
+        return row[0] if row else 0
+    finally:
+        conn.close()
+
+
+def _read_last_hit_at(path, key: str) -> str:
+    conn = sqlite3.connect(path)
+    try:
+        row = conn.execute(
+            "SELECT last_hit_at FROM prompt_cache WHERE prompt_hash = ?",
+            (key,),
+        ).fetchone()
+        return row[0] if row else ""
+    finally:
+        conn.close()
+
+
+def test_get_bumps_hit_count(tmp_path):
+    path = tmp_path / "cache.db"
+    cache = PromptCache(path=path)
+    cache.set("key1", "value")
+    assert _read_hit_count(path, "key1") == 0
+    cache.get("key1")
+    assert _read_hit_count(path, "key1") == 1
+    cache.get("key1")
+    cache.get("key1")
+    assert _read_hit_count(path, "key1") == 3
+
+
+def test_get_updates_last_hit_at(tmp_path):
+    path = tmp_path / "cache.db"
+    cache = PromptCache(path=path)
+    cache.set("key1", "value")
+    initial = _read_last_hit_at(path, "key1")
+    cache.get("key1")
+    after = _read_last_hit_at(path, "key1")
+    assert after > initial
+
+
+def test_get_miss_does_not_create_row(tmp_path):
+    path = tmp_path / "cache.db"
+    cache = PromptCache(path=path)
+    assert cache.get("never-stored") is None
+    conn = sqlite3.connect(path)
+    count = conn.execute("SELECT COUNT(*) FROM prompt_cache").fetchone()[0]
+    conn.close()
+    assert count == 0
