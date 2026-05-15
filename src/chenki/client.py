@@ -30,6 +30,11 @@ class ChenkiClient:
         self.config = config or ChenkiConfig()
         if endpoint is not None:
             self.config.endpoint = endpoint
+        self._cache: Any = None
+        if self.config.cache_enabled:
+            from chenki.cache import PromptCache
+
+            self._cache = PromptCache(path=self.config.cache_path)
 
     def chat(
         self,
@@ -39,10 +44,16 @@ class ChenkiClient:
         temperature: float | None = None,
     ) -> ChatCompletion:
         payload = self._build_payload(messages, model, temperature)
+        cache_key = self._cache_key(payload)
+        cached = self._cache_lookup(cache_key)
+        if cached is not None:
+            return cached
         url = self._completions_url()
         for attempt in range(self.config.max_retries + 1):
             try:
-                return _sync_request(url, payload, self.config.timeout)
+                completion = _sync_request(url, payload, self.config.timeout)
+                self._cache_store(cache_key, completion)
+                return completion
             except ChenkiServerError:
                 if attempt >= self.config.max_retries:
                     raise
@@ -57,10 +68,16 @@ class ChenkiClient:
         temperature: float | None = None,
     ) -> ChatCompletion:
         payload = self._build_payload(messages, model, temperature)
+        cache_key = self._cache_key(payload)
+        cached = self._cache_lookup(cache_key)
+        if cached is not None:
+            return cached
         url = self._completions_url()
         for attempt in range(self.config.max_retries + 1):
             try:
-                return await _async_request(url, payload, self.config.timeout)
+                completion = await _async_request(url, payload, self.config.timeout)
+                self._cache_store(cache_key, completion)
+                return completion
             except ChenkiServerError:
                 if attempt >= self.config.max_retries:
                     raise
@@ -121,6 +138,30 @@ class ChenkiClient:
         if parsed is not None:
             return parsed
         raise ChenkiParseError(raw=response.text)
+
+    def _cache_key(self, payload: dict[str, Any]) -> str | None:
+        if self._cache is None:
+            return None
+        from chenki.cache import hash_request
+
+        return hash_request(
+            payload["messages"], payload["model"], payload["temperature"]
+        )
+
+    def _cache_lookup(self, cache_key: str | None) -> ChatCompletion | None:
+        if cache_key is None or self._cache is None:
+            return None
+        cached = self._cache.get(cache_key)
+        if cached is None:
+            return None
+        return ChatCompletion(text=cached)
+
+    def _cache_store(
+        self, cache_key: str | None, completion: ChatCompletion
+    ) -> None:
+        if cache_key is None or self._cache is None:
+            return
+        self._cache.set(cache_key, completion.text)
 
     def _completions_url(self) -> str:
         return f"{self.config.endpoint.rstrip('/')}/chat/completions"

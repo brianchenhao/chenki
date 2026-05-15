@@ -1,4 +1,5 @@
 from chenki._version import __version__
+from chenki.cache import PromptCache
 from chenki.client import ChenkiClient
 from chenki.config import ChenkiConfig
 from chenki.exceptions import (
@@ -26,6 +27,7 @@ __all__ = [
     "Message",
     "OrderItem",
     "ParsedOrder",
+    "PromptCache",
     "PromptTemplate",
     "RestaurantPrompts",
 ]
