@@ -1,6 +1,6 @@
 import sqlite3
 
-from chenki.cache import PromptCache
+from chenki.cache import PromptCache, hash_request
 
 
 def test_promptcache_creates_db_file(tmp_path):
@@ -34,3 +34,32 @@ def test_promptcache_set_overwrites_existing_value(tmp_path):
     cache.set("key1", "first")
     cache.set("key1", "second")
     assert cache.get("key1") == "second"
+
+
+_MESSAGES_A = [{"role": "user", "content": "hello"}]
+_MESSAGES_B = [{"role": "user", "content": "goodbye"}]
+
+
+def test_hash_request_is_deterministic():
+    h1 = hash_request(_MESSAGES_A, "qwen2.5", 0.7)
+    h2 = hash_request(_MESSAGES_A, "qwen2.5", 0.7)
+    assert h1 == h2
+    assert len(h1) == 64  # SHA-256 hex digest
+
+
+def test_hash_request_differs_on_messages():
+    h1 = hash_request(_MESSAGES_A, "qwen2.5", 0.7)
+    h2 = hash_request(_MESSAGES_B, "qwen2.5", 0.7)
+    assert h1 != h2
+
+
+def test_hash_request_differs_on_model():
+    h1 = hash_request(_MESSAGES_A, "qwen2.5", 0.7)
+    h2 = hash_request(_MESSAGES_A, "llama3", 0.7)
+    assert h1 != h2
+
+
+def test_hash_request_differs_on_temperature():
+    h1 = hash_request(_MESSAGES_A, "qwen2.5", 0.7)
+    h2 = hash_request(_MESSAGES_A, "qwen2.5", 0.1)
+    assert h1 != h2

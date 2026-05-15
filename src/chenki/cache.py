@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterator
+from typing import Any, Iterator
 
 
 class PromptCache:
@@ -61,6 +63,21 @@ class PromptCache:
             conn.commit()
         finally:
             conn.close()
+
+
+def hash_request(
+    messages: list[dict[str, Any]], model: str, temperature: float
+) -> str:
+    """SHA-256 hex digest over a normalized (messages, model, temperature)."""
+    h = hashlib.sha256()
+    h.update(
+        json.dumps(messages, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    )
+    h.update(b"\x00")
+    h.update(model.encode("utf-8"))
+    h.update(b"\x00")
+    h.update(f"{temperature}".encode("utf-8"))
+    return h.hexdigest()
 
 
 def _utcnow_iso() -> str:
