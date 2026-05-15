@@ -203,3 +203,18 @@ def test_get_miss_does_not_create_row(tmp_path):
     count = conn.execute("SELECT COUNT(*) FROM prompt_cache").fetchone()[0]
     conn.close()
     assert count == 0
+
+
+def test_default_config_has_cache_disabled():
+    assert ChenkiConfig().cache_enabled is False
+
+
+@respx.mock
+def test_chat_default_config_creates_no_cache_file(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    respx.post(f"{ENDPOINT}/chat/completions").mock(
+        return_value=_completion_response("hi")
+    )
+    client = ChenkiClient(endpoint=ENDPOINT)
+    client.chat([Message(role="user", content="hi")])
+    assert list(tmp_path.glob("*.db*")) == []
