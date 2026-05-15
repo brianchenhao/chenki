@@ -29,6 +29,9 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
+# Chenki runtime cache
+chenki_cache.db*
+
 # Local planning / AI context — never committed, never pushed
 PLAN-*.md
 PLANstage1portfolio.md
