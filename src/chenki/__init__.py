@@ -8,6 +8,7 @@ from chenki.exceptions import (
     ChenkiServerError,
     ChenkiTimeout,
 )
+from chenki.helpers import DishClassification
 from chenki.messages import ChatCompletion, Message
 from chenki.prompts import PromptTemplate, RestaurantPrompts
 
@@ -21,6 +22,7 @@ __all__ = [
     "ChenkiRateLimited",
     "ChenkiServerError",
     "ChenkiTimeout",
+    "DishClassification",
     "Message",
     "PromptTemplate",
     "RestaurantPrompts",

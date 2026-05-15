@@ -2,13 +2,19 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import time
 from typing import Any, Iterable, Iterator
 
 import httpx
 
 from chenki.config import ChenkiConfig
-from chenki.exceptions import ChenkiRateLimited, ChenkiServerError, ChenkiTimeout
+from chenki.exceptions import (
+    ChenkiParseError,
+    ChenkiRateLimited,
+    ChenkiServerError,
+    ChenkiTimeout,
+)
 from chenki.messages import ChatCompletion, Message
 
 
@@ -77,6 +83,39 @@ class ChenkiClient:
         from chenki.helpers.menu_qa import ask_about_menu
 
         return ask_about_menu(self, question, menu)
+
+    def classify_dish(self, name: str, description: str):
+        from chenki.helpers.classify import classify_dish
+
+        return classify_dish(self, name, description)
+
+    def _chat_for_json(
+        self,
+        messages: list[Message],
+        schema_hint: str,
+        *,
+        temperature: float = 0.1,
+    ) -> dict[str, Any]:
+        response = self.chat(messages, temperature=temperature)
+        parsed = _try_parse_json(response.text)
+        if parsed is not None:
+            return parsed
+        retry_messages = list(messages) + [
+            Message(role="assistant", content=response.text),
+            Message(
+                role="user",
+                content=(
+                    f"Your previous response was not valid JSON: "
+                    f"{response.text[:200]!r}. "
+                    f"Respond with ONLY a JSON object matching: {schema_hint}"
+                ),
+            ),
+        ]
+        response = self.chat(retry_messages, temperature=temperature)
+        parsed = _try_parse_json(response.text)
+        if parsed is not None:
+            return parsed
+        raise ChenkiParseError(raw=response.text)
 
     def _completions_url(self) -> str:
         return f"{self.config.endpoint.rstrip('/')}/chat/completions"
@@ -170,6 +209,20 @@ def _raise_for_status(response: httpx.Response) -> None:
 
 def _retry_delay(attempt: int, base: float) -> float:
     return base * (2 ** attempt)
+
+
+def _try_parse_json(raw: str) -> dict[str, Any] | None:
+    try:
+        return json.loads(raw.strip())
+    except json.JSONDecodeError:
+        pass
+    match = re.search(r"\{.*\}", raw, re.DOTALL)
+    if match:
+        try:
+            return json.loads(match.group(0))
+        except json.JSONDecodeError:
+            pass
+    return None
 
 
 def _parse_chat_completion(body: dict[str, Any]) -> ChatCompletion:

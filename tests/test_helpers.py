@@ -1,7 +1,7 @@
 import httpx
 import respx
 
-from chenki import ChenkiClient
+from chenki import ChenkiClient, DishClassification
 
 ENDPOINT = "https://chenki-llm.hf.space/v1"
 
@@ -32,3 +32,20 @@ def test_ask_about_menu_returns_assistant_text():
         menu=[{"name": "Curry", "description": "spicy"}],
     )
     assert answer == "Try the spicy curry."
+
+
+@respx.mock
+def test_classify_dish_returns_dataclass():
+    respx.post(f"{ENDPOINT}/chat/completions").mock(
+        return_value=_completion_response(
+            '{"cuisine":"Malay","spice_level":"medium",'
+            '"dietary_tags":["contains_egg"]}'
+        )
+    )
+    client = ChenkiClient(endpoint=ENDPOINT)
+    result = client.classify_dish("Nasi Lemak", "rice with sambal")
+    assert result == DishClassification(
+        cuisine="Malay",
+        spice_level="medium",
+        dietary_tags=["contains_egg"],
+    )
