@@ -2,7 +2,7 @@
 
 Self-hostable LLM client for restaurant tech. A thin Python library that talks to any OpenAI-compatible `/v1/chat/completions` endpoint, with restaurant-domain helpers (menu Q&A, dish classification, order parsing) built on top.
 
-By default it points at **chenki-llm.hf.space** — a free Hugging Face Space running Qwen 2.5 1.5B Instruct (Q4_K_M) behind `llama.cpp`. Self-hosters can deploy their own Space using the included `server/Dockerfile`.
+By default it points at **brianchenhao-geyam-llm.hf.space** — a free Hugging Face Space running Qwen 2.5 1.5B Instruct (Q4_K_M) behind `llama.cpp`. Self-hosters can deploy their own Space using the included `server/Dockerfile`.
 
 ## Status
 
@@ -19,7 +19,7 @@ pip install chenki
 ```python
 from chenki import ChenkiClient, Message
 
-client = ChenkiClient(endpoint="https://chenki-llm.hf.space/v1")
+client = ChenkiClient()  # defaults to https://brianchenhao-geyam-llm.hf.space/v1
 reply = client.chat([Message(role="user", content="Hello!")])
 print(reply.text)
 ```

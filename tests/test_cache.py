@@ -7,7 +7,7 @@ import respx
 from chenki import ChenkiClient, ChenkiConfig, Message
 from chenki.cache import PromptCache, hash_request
 
-ENDPOINT = "https://chenki-llm.hf.space/v1"
+ENDPOINT = "https://brianchenhao-geyam-llm.hf.space/v1"
 
 
 def _completion_response(content: str):

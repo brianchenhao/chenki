@@ -10,7 +10,7 @@ from chenki import (
     ParsedOrder,
 )
 
-ENDPOINT = "https://chenki-llm.hf.space/v1"
+ENDPOINT = "https://brianchenhao-geyam-llm.hf.space/v1"
 
 
 def _completion_response(content: str):
