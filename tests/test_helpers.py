@@ -1,7 +1,14 @@
 import httpx
+import pytest
 import respx
 
-from chenki import ChenkiClient, DishClassification, OrderItem, ParsedOrder
+from chenki import (
+    ChenkiClient,
+    ChenkiParseError,
+    DishClassification,
+    OrderItem,
+    ParsedOrder,
+)
 
 ENDPOINT = "https://chenki-llm.hf.space/v1"
 
@@ -66,4 +73,54 @@ def test_parse_order_text_returns_dataclass():
     assert order == ParsedOrder(
         items=[OrderItem(name="Pad Thai", quantity=2, notes="no peanuts")],
         notes="dine-in",
+    )
+
+
+@respx.mock
+def test_classify_dish_retries_on_invalid_json():
+    route = respx.post(f"{ENDPOINT}/chat/completions").mock(
+        side_effect=[
+            _completion_response("Sure! Here is the classification: rice."),
+            _completion_response(
+                '{"cuisine":"Italian","spice_level":"none","dietary_tags":["vegetarian"]}'
+            ),
+        ]
+    )
+    client = ChenkiClient(endpoint=ENDPOINT)
+    result = client.classify_dish("Margherita", "cheese and tomato")
+    assert result == DishClassification(
+        cuisine="Italian",
+        spice_level="none",
+        dietary_tags=["vegetarian"],
+    )
+    assert route.call_count == 2
+
+
+@respx.mock
+def test_classify_dish_raises_after_failed_retry():
+    route = respx.post(f"{ENDPOINT}/chat/completions").mock(
+        return_value=_completion_response("nothing structured here at all")
+    )
+    client = ChenkiClient(endpoint=ENDPOINT)
+    with pytest.raises(ChenkiParseError):
+        client.classify_dish("Margherita", "cheese and tomato")
+    assert route.call_count == 2  # initial + retry
+
+
+@respx.mock
+def test_classify_dish_extracts_json_from_markdown_fence():
+    respx.post(f"{ENDPOINT}/chat/completions").mock(
+        return_value=_completion_response(
+            "Here you go:\n```json\n"
+            '{"cuisine":"Thai","spice_level":"hot",'
+            '"dietary_tags":["contains_peanut"]}\n'
+            "```\nAnything else?"
+        )
+    )
+    client = ChenkiClient(endpoint=ENDPOINT)
+    result = client.classify_dish("Pad Thai", "noodles with peanut sauce")
+    assert result == DishClassification(
+        cuisine="Thai",
+        spice_level="hot",
+        dietary_tags=["contains_peanut"],
     )
