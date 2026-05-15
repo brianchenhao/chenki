@@ -124,3 +124,53 @@ def test_classify_dish_extracts_json_from_markdown_fence():
         spice_level="hot",
         dietary_tags=["contains_peanut"],
     )
+
+
+def test_dish_classification_rejects_invalid_spice_level():
+    with pytest.raises(ChenkiParseError):
+        DishClassification(
+            cuisine="Italian", spice_level="extreme", dietary_tags=[]
+        )
+
+
+@respx.mock
+def test_classify_dish_raises_on_invalid_spice_level_from_llm():
+    respx.post(f"{ENDPOINT}/chat/completions").mock(
+        return_value=_completion_response(
+            '{"cuisine":"Italian","spice_level":"extreme","dietary_tags":[]}'
+        )
+    )
+    client = ChenkiClient(endpoint=ENDPOINT)
+    with pytest.raises(ChenkiParseError):
+        client.classify_dish("Margherita", "cheese")
+
+
+@respx.mock
+def test_parse_order_text_handles_multiple_items():
+    respx.post(f"{ENDPOINT}/chat/completions").mock(
+        return_value=_completion_response(
+            '{"items":['
+            '{"name":"Pad Thai","quantity":2,"notes":""},'
+            '{"name":"Green Curry","quantity":1,"notes":"mild"},'
+            '{"name":"Spring Rolls","quantity":3,"notes":""}'
+            '],"notes":""}'
+        )
+    )
+    client = ChenkiClient(endpoint=ENDPOINT)
+    order = client.parse_order_text("a big order", menu=[])
+    assert len(order.items) == 3
+    assert order.items[0] == OrderItem(name="Pad Thai", quantity=2, notes="")
+    assert order.items[1] == OrderItem(name="Green Curry", quantity=1, notes="mild")
+    assert order.items[2] == OrderItem(name="Spring Rolls", quantity=3, notes="")
+
+
+@respx.mock
+def test_parse_order_text_handles_empty_items():
+    respx.post(f"{ENDPOINT}/chat/completions").mock(
+        return_value=_completion_response(
+            '{"items":[],"notes":"customer browsing"}'
+        )
+    )
+    client = ChenkiClient(endpoint=ENDPOINT)
+    order = client.parse_order_text("just looking", menu=[])
+    assert order == ParsedOrder(items=[], notes="customer browsing")
