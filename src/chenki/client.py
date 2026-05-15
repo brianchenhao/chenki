@@ -73,6 +73,11 @@ class ChenkiClient:
         payload = self._build_payload(messages, model, temperature, stream=True)
         return _sync_stream(self._completions_url(), payload, self.config.timeout)
 
+    def ask_about_menu(self, question: str, menu: list[dict[str, Any]]) -> str:
+        from chenki.helpers.menu_qa import ask_about_menu
+
+        return ask_about_menu(self, question, menu)
+
     def _completions_url(self) -> str:
         return f"{self.config.endpoint.rstrip('/')}/chat/completions"
 
