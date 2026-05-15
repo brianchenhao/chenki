@@ -11,7 +11,7 @@ from chenki import (
     Message,
 )
 
-ENDPOINT = "https://brianchenhao-geyam-llm.hf.space/v1"
+ENDPOINT = "https://brianchenhao-chenki-llm.hf.space/v1"
 
 
 def _completion_response(content: str = "Hello world!", *, total_tokens: int = 42):

@@ -16,7 +16,7 @@ OpenAI-compatible inference server running **Qwen 2.5 1.5B Instruct (Q4_K_M)** b
 ## Endpoint
 
 ```
-POST https://brianchenhao-geyam-llm.hf.space/v1/chat/completions
+POST https://brianchenhao-chenki-llm.hf.space/v1/chat/completions
 ```
 
 Standard OpenAI chat-completions request/response shape. Also exposes `/health` and `/v1/models`.
