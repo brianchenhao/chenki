@@ -2,7 +2,7 @@
 
 from chenki import ChenkiClient, Message
 
-client = ChenkiClient(endpoint="https://brianchenhao-geyam-llm.hf.space/v1")
+client = ChenkiClient()
 for chunk in client.chat_stream(
     [Message(role="user", content="Count from 1 to 5, one number per line.")]
 ):

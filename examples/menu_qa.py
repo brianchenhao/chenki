@@ -10,6 +10,6 @@ MENU = [
     {"name": "Spring Rolls", "description": "Crispy vegetable rolls"},
 ]
 
-client = ChenkiClient(endpoint="https://brianchenhao-geyam-llm.hf.space/v1")
+client = ChenkiClient()
 answer = client.ask_about_menu("Anything spicy and vegetarian?", MENU)
 print(answer)

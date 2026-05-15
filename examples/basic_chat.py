@@ -2,7 +2,7 @@
 
 from chenki import ChenkiClient, Message
 
-client = ChenkiClient(endpoint="https://brianchenhao-geyam-llm.hf.space/v1")
+client = ChenkiClient()
 reply = client.chat(
     [
         Message(role="system", content="You are a helpful assistant."),
