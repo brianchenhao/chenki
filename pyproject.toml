@@ -32,7 +32,7 @@ dependencies = [
 
 [project.optional-dependencies]
 cache = []
-test = ["pytest>=8.0", "pytest-asyncio>=0.23", "respx>=0.20"]
+test = ["pytest>=8.0", "pytest-asyncio>=0.23", "respx>=0.20", "pytest-cov>=5.0"]
 docs = ["mkdocs>=1.6", "mkdocs-material>=9.5"]
 
 [project.urls]
@@ -41,3 +41,22 @@ Repository = "https://github.com/brianchenhao/chenki"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+markers = [
+    "live: hits the real chenki-llm HF Space; skipped unless --live is passed",
+]
+
+[tool.coverage.run]
+source = ["src/chenki"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "raise RuntimeError\\(\"retry loop",
+    "if TYPE_CHECKING:",
+]
