@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+@theme {
+  --color-chenki-50: #faf5ff;
+  --color-chenki-100: #f3e8ff;
+  --color-chenki-200: #e9d5ff;
+  --color-chenki-300: #d8b4fe;
+  --color-chenki-400: #c084fc;
+  --color-chenki-500: #a855f7;
+  --color-chenki-600: #9333ea;
+  --color-chenki-700: #7e22ce;
+  --color-chenki-800: #6b21a8;
+  --color-chenki-900: #581c87;
+  --color-chenki-pink: #ec4899;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: white;
+  color: #1f2937;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
